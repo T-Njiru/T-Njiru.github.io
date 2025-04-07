@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planogram Adherence</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <h2>Planogram Adherence System</h2>
+
+    <h3>Upload Planogram</h3>
+    <input type="file" id="uploadPlanogram">
+    <button id="uploadPlanogramBtn">Upload</button>
+
+    <h3>Upload Shelf Image</h3>
+    <input type="file" id="uploadShelf">
+    <button id="uploadShelfBtn">Upload</button>
+
+    <br><br>
+
+    <label for="planogram">Select Planogram:</label>
+    <select id="planogram">
+        {% for image in images %}
+        <option value="{{ image.image_id }}" data-path="{{ image.filepath }}">{{ image.filename }}</option>
+        {% endfor %}
+    </select>
+
+    <br><br>
+
+    <label for="shelf">Select Shelf Image:</label>
+    <select id="shelf">
+        {% for image in images %}
+        <option value="{{ image.image_id }}" data-path="{{ image.filepath }}">{{ image.filename }}</option>
+        {% endfor %}
+    </select>
+
+    <br><br>
+
+    <button id="compare">Compare</button>
+
+    <h3>Adherence Score: <span id="score">N/A</span>%</h3>
+
+    <script>
+        $(document).ready(function() {
+            $("#compare").click(function() {
+                var planogram_id = $("#planogram").val();
+                var image_id = $("#shelf").val();
+
+                $.ajax({
+                    url: "/process",
+                    method: "POST",
+                    contentType: "application/json",
+                    data: JSON.stringify({ planogram_id: planogram_id, image_id: image_id }),
+                    success: function(response) {
+                        $("#score").text(response.adherence_score.toFixed(2));
+                    },
+                    error: function(xhr) {
+                        alert("Error: " + xhr.responseJSON.error);
+                    }
+                });
+            });
+
+            $("#uploadPlanogramBtn").click(function() {
+                var file = $("#uploadPlanogram")[0].files[0];
+                if (!file) {
+                    alert("Please select a planogram image.");
+                    return;
+                }
+                var formData = new FormData();
+                formData.append("file", file);
+                
+                $.ajax({
+                    url: "/upload_planogram",
+                    method: "POST",
+                    processData: false,
+                    contentType: false,
+                    data: formData,
+                    success: function(response) {
+                        alert("Planogram uploaded successfully!");
+                        location.reload();
+                    },
+                    error: function(xhr) {
+                        alert("Error: " + xhr.responseJSON.error);
+                    }
+                });
+            });
+
+            $("#uploadShelfBtn").click(function() {
+                var file = $("#uploadShelf")[0].files[0];
+                if (!file) {
+                    alert("Please select a shelf image.");
+                    return;
+                }
+                var formData = new FormData();
+                formData.append("file", file);
+                
+                $.ajax({
+                    url: "/upload_shelf",
+                    method: "POST",
+                    processData: false,
+                    contentType: false,
+                    data: formData,
+                    success: function(response) {
+                        alert("Shelf image uploaded successfully!");
+                        location.reload();
+                    },
+                    error: function(xhr) {
+                        alert("Error: " + xhr.responseJSON.error);
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

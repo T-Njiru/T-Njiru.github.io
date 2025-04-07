@@ -1,0 +1,91 @@
+from flask import Flask, request, jsonify, render_template, send_from_directory
+import os
+from werkzeug.utils import secure_filename
+from logic import compare_images, get_database_connection
+
+app = Flask(__name__)
+UPLOAD_FOLDER = "C:\\Users\\tednj\\Desktop\\Planogram Adherence\\uploads"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif"}
+
+def allowed_file(filename):
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@app.route('/uploads/<filename>')
+def uploaded_file(filename):
+    """Serve uploaded images."""
+    return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
+
+@app.route('/')
+def index():
+    """Render the main page with image selection."""
+    conn = get_database_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    # Fetch planograms and shelf images from the database
+    cursor.execute("SELECT image_id, filename FROM images")
+    images = cursor.fetchall()
+
+    conn.close()
+    return render_template('index.html', images=images)
+
+@app.route('/upload', methods=['POST'])
+def upload_image():
+    """Handle image uploads and save them in the database."""
+    if "file" not in request.files:
+        return jsonify({"error": "No file part"}), 400
+    
+    file = request.files["file"]
+    
+    if file.filename == "":
+        return jsonify({"error": "No selected file"}), 400
+    
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        file_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+        file.save(file_path)
+
+        # Save the file path in the database
+        conn = get_database_connection()
+        cursor = conn.cursor()
+        query = "INSERT INTO images (filename, filepath, uploaded_at) VALUES (%s, %s, NOW())"
+        cursor.execute(query, (filename, file_path))
+        conn.commit()
+        conn.close()
+
+        return jsonify({"success": "File uploaded successfully!"}), 200
+
+    return jsonify({"error": "Invalid file type"}), 400
+
+@app.route('/process', methods=['POST'])
+def process_image():
+    """Compare the selected planogram and shelf image."""
+    data = request.get_json()
+    planogram_id = data.get("planogram_id")
+    image_id = data.get("image_id")
+
+    conn = get_database_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT filepath FROM images WHERE image_id = %s", (planogram_id,))
+    planogram = cursor.fetchone()
+
+    cursor.execute("SELECT filepath FROM images WHERE image_id = %s", (image_id,))
+    shelf_image = cursor.fetchone()
+
+    conn.close()
+
+    if not planogram or not os.path.exists(planogram["filepath"]):
+        return jsonify({"error": "Planogram image not found"}), 400
+    if not shelf_image or not os.path.exists(shelf_image["filepath"]):
+        return jsonify({"error": "Shelf image not found"}), 400
+
+    # Compare images and get adherence score
+    adherence_score = compare_images(planogram["filepath"], shelf_image["filepath"])
+
+    return jsonify({"adherence_score": adherence_score})
+
+if __name__ == '__main__':
+    app.run(debug=True)
