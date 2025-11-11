@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+<!-- Navbar -->
+<nav class="bg-white shadow">
+  <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+    <div class="flex items-center">
+      <i class="fas fa-user-shield text-indigo-600 text-xl mr-2"></i>
+      <span class="text-xl font-semibold text-gray-800">Admin Dashboard</span>
+    </div>
+    <button onclick="logout()" class="text-sm text-gray-600 hover:text-indigo-600">Log Out</button>
+  </div>
+</nav>
+
+<!-- Content -->
+<main class="max-w-6xl mx-auto px-4 py-8">
+  <h1 class="text-3xl font-bold text-gray-900 mb-6">Platform Analytics</h1>
+
+  <div id="statsContainer" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6"></div>
+</main>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js";
+  import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-auth.js";
+  import {
+    getFirestore, collection, getDocs, doc, getDoc, query, where
+  } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDmiU5VryF5glIAqaIEUsipIaQwDZZR5vM",
+    authDomain: "cs-project1-1a426.firebaseapp.com",
+    projectId: "cs-project1-1a426",
+    storageBucket: "cs-project1-1a426.appspot.com",
+    messagingSenderId: "685440175805",
+    appId: "1:685440175805:web:f6b3f9712ac8b2417731d4"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+  const statsContainer = document.getElementById("statsContainer");
+
+  const createCard = (title, value, iconClass = "fa-chart-bar") => {
+    return `
+      <div class="bg-white p-6 rounded-lg shadow flex items-center space-x-4">
+        <i class="fas ${iconClass} text-indigo-500 text-3xl"></i>
+        <div>
+          <h3 class="text-lg font-semibold text-gray-700">${title}</h3>
+          <p class="text-2xl font-bold text-gray-900">${value}</p>
+        </div>
+      </div>
+    `;
+  };
+
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) return window.location.href = "login.html";
+
+    const userRef = doc(db, "users", user.uid);
+    const userSnap = await getDoc(userRef);
+
+    if (!userSnap.exists() || userSnap.data().role !== "admin") {
+      alert("Access denied. You are not an admin.");
+      return window.location.href = "login.html";
+    }
+
+    const usersSnap = await getDocs(collection(db, "users"));
+    const sessionsSnap = await getDocs(collection(db, "sessions"));
+
+    let totalUsers = 0;
+    let tutors = 0;
+    let tutees = 0;
+    let sessions = 0;
+    let statusCounts = {
+      confirmed: 0,
+      cancelled: 0,
+      proposed: 0,
+      pending: 0
+    };
+
+    usersSnap.forEach(doc => {
+      totalUsers++;
+      const role = doc.data().role;
+      if (role === "tutor") tutors++;
+      else if (role === "tutee") tutees++;
+    });
+
+    sessionsSnap.forEach(doc => {
+      sessions++;
+      const status = doc.data().status;
+      if (statusCounts[status] !== undefined) statusCounts[status]++;
+    });
+
+    statsContainer.innerHTML = `
+      ${createCard("Total Users", totalUsers, "fa-users")}
+      ${createCard("Tutors", tutors, "fa-chalkboard-teacher")}
+      ${createCard("Tutees", tutees, "fa-user-graduate")}
+      ${createCard("Total Sessions", sessions, "fa-calendar-alt")}
+      ${createCard("Confirmed Sessions", statusCounts.confirmed, "fa-check-circle")}
+      ${createCard("Cancelled Sessions", statusCounts.cancelled, "fa-times-circle")}
+      ${createCard("Proposed Sessions", statusCounts.proposed, "fa-hourglass-half")}
+      ${createCard("Pending Sessions", statusCounts.pending, "fa-clock")}
+    `;
+  });
+
+  window.logout = () => signOut(auth).then(() => window.location.href = "login.html");
+</script>
+
+</body>
+</html>

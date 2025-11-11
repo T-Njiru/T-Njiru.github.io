@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Peer Tutoring Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #e1eaf0;
+            color: #1e1e2f;
+        }
+        
+        @media (max-width: 768px) {
+            .main-content {
+                flex-direction: column-reverse;
+            }
+            .main-text {
+                text-align: center;
+            }
+            .main-buttons {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Sticky Navbar -->
+    <nav class="sticky top-0 z-50 bg-white shadow-sm border-b border-[#cfd8dc]">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <!-- Left-aligned logo -->
+            <div class="flex items-center">
+                <div class="w-10 h-10 rounded-full bg-[#4361ee] flex items-center justify-center mr-2">
+                    <i class="fas fa-graduation-cap text-white text-xl"></i>
+                </div>
+                <span class="font-bold text-xl text-[#1e1e2f]">PeerTutor</span>
+            </div>
+            
+            <!-- Right-aligned login link -->
+            <div>
+                <a href="/login.html" class="text-[#555] hover:text-[#4361ee] transition-colors duration-200 font-medium">
+                    <i class="fas fa-sign-in-alt mr-1"></i> Login
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- main section -->
+<section class="main-section py-12 md:py-20">
+    <div class="container mx-auto px-4">
+        <div class="main-content flex flex-col md:flex-row items-center">
+            <!-- main Text -->
+            <div class="main-text md:w-1/2 mb-10 md:mb-0">
+                <h1 class="text-4xl md:text-5xl font-bold mb-4 text-[#1e1e2f]">Peer Tutoring Platform</h1>
+                <p class="text-xl text-[#555] mb-8">Learning with AI assistance</p>
+                
+                <div class="main-buttons flex flex-wrap gap-4">
+                    <!-- Log in button -->
+                    <a href="/login.html">
+                        <button class="bg-[#1e1e2f] hover:bg-[#4361ee] text-white font-medium py-3 px-6 rounded-lg transition-colors duration-200 shadow-md">
+                            Log in
+                        </button>
+                    </a>
+                
+                    <!-- Sign up button -->
+                    <a href="/Auth.html">
+                        <button class="border-2 border-[#1e1e2f] hover:border-[#4361ee] text-[#1e1e2f] hover:text-[#4361ee] font-medium py-3 px-6 rounded-lg transition-colors duration-200">
+                            Sign up
+                        </button>
+                    </a>
+                </div>
+                
+            </div>
+            
+            <!-- main Illustration -->
+            <div class="md:w-1/2 h-64 md:h-96 flex items-center justify-center">
+                <img src="/resources/6822722.jpg" 
+                     alt="Learning illustration" 
+                     class="h-full w-full object-contain">
+            </div>
+        </div>
+    </div>
+</section>
+
+
+    <!-- Footer Section -->
+    <footer class="bg-white border-t border-[#cfd8dc] py-12">
+        <div class="container mx-auto px-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <!-- Column 1 -->
+                <div>
+                    <h3 class="text-lg font-semibold mb-4 text-[#1e1e2f]">About</h3>
+                    <ul class="space-y-2">
+                        <li><a href="#" class="text-[#555] hover:text-[#4361ee] transition-colors duration-200">Our Mission</a></li>
+                        <li><a href="#" class="text-[#555] hover:text-[#4361ee] transition-colors duration-200">Team</a></li>
+                        <li><a href="#" class="text-[#555] hover:text-[#4361ee] transition-colors duration-200">Partners</a></li>
+                    </ul>
+                </div>
+                
+                <!-- Column 2 -->
+                <div>
+                    <h3 class="text-lg font-semibold mb-4 text-[#1e1e2f]">Support</h3>
+                    <ul class="space-y-2">
+                        <li><a href="#" class="text-[#555] hover:text-[#4361ee] transition-colors duration-200">Help Center</a></li>
+                        <li><a href="#" class="text-[#555] hover:text-[#4361ee] transition-colors duration-200">Contact Us</a></li>
+                        <li><a href="#" class="text-[#555] hover:text-[#4361ee] transition-colors duration-200">Feedback</a></li>
+                    </ul>
+                </div>
+                
+                <!-- Column 3 -->
+                <div>
+                    <h3 class="text-lg font-semibold mb-4 text-[#1e1e2f]">Legal</h3>
+                    <ul class="space-y-2">
+                        <li><a href="#" class="text-[#555] hover:text-[#4361ee] transition-colors duration-200">Terms of Service</a></li>
+                        <li><a href="#" class="text-[#555] hover:text-[#4361ee] transition-colors duration-200">Privacy Policy</a></li>
+                       
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="border-t border-[#cfd8dc] mt-8 pt-8 text-center text-[#555]">
+                <p>&copy; 2025 Peer Tutoring Platform. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Simple JavaScript for interactive elements
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add hover effects to buttons
+            const buttons = document.querySelectorAll('button');
+            buttons.forEach(button => {
+                button.addEventListener('mouseenter', function() {
+                    this.style.transform = 'translateY(-2px)';
+                });
+                button.addEventListener('mouseleave', function() {
+                    this.style.transform = 'translateY(0)';
+                });
+            });
+            
+            // Smooth scrolling for anchor links
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    document.querySelector(this.getAttribute('href')).scrollIntoView({
+                        behavior: 'smooth'
+                    });
+                });
+            });
+        });
+    </script>
+</body>
+</html>

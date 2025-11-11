@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Ask the AI | TutorConnect</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+
+  <style>
+    .chat-card { transition: all 0.2s ease; }
+    .chat-card:hover {
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+    }
+    .question-input { padding-right: 3.5rem; }
+    .submit-btn {
+      right: 1px;
+      top: 1px;
+      height: calc(100% - 2px);
+    }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+<!-- Navbar -->
+<nav class="bg-white shadow-sm">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex justify-between items-center h-16">
+      <div class="flex items-center">
+        <i class="fas fa-graduation-cap text-indigo-600 text-2xl mr-2"></i>
+        <span class="text-xl font-semibold text-gray-800">PeerTutor</span>
+      </div>
+      <div class="flex items-center space-x-4">
+        <a href="tuteeDash.html" class="text-gray-600 hover:text-indigo-600 px-3 py-2 text-sm font-medium">
+          <i class="fas fa-home mr-1"></i> TuteeDash
+        </a>
+        <button onclick="logout()" class="text-gray-600 hover:text-indigo-600 px-3 py-2 text-sm font-medium">
+          <i class="fas fa-sign-out-alt mr-1"></i> Log Out
+        </button>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- Main content -->
+<main class="max-w-4xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+  <div class="text-center mb-12">
+    <h1 class="text-4xl font-bold text-gray-900 mb-2">Ask the AI!</h1>
+    <p class="text-lg text-gray-600">Get instant help with your academic questions</p>
+  </div>
+
+  <!-- Input field -->
+  <div class="mb-8 relative">
+    <input 
+      type="text" 
+      id="questionInput" 
+      class="question-input w-full p-4 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" 
+      placeholder="Enter Your Question..."
+    >
+    <button 
+      id="submitQuestion" 
+      class="submit-btn absolute bg-indigo-600 text-white px-4 rounded-r-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+    >
+      <i class="fas fa-arrow-right"></i>
+    </button>
+  </div>
+
+  <!-- Chat area -->
+  <div id="chatContainer" class="space-y-6">
+    <div class="chat-card bg-white p-6 rounded-lg border border-gray-200">
+      <div class="flex items-center mb-4">
+        <div class="flex-shrink-0 h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
+          <i class="fas fa-robot text-indigo-600"></i>
+        </div>
+        <div class="ml-4">
+          <h3 class="text-lg font-medium text-gray-900">AI Assistant</h3>
+        </div>
+      </div>
+      <div class="pl-14">
+        <p class="text-gray-700">Hello! I'm your AI learning assistant. Ask me anything about your subjects, and I'll do my best to help you understand the concepts.</p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js";
+  import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDmiU5VryF5glIAqaIEUsipIaQwDZZR5vM",
+    authDomain: "cs-project1-1a426.firebaseapp.com",
+    projectId: "cs-project1-1a426",
+    storageBucket: "cs-project1-1a426.appspot.com",
+    messagingSenderId: "685440175805",
+    appId: "1:685440175805:web:f6b3f9712ac8b2417731d4"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+
+  onAuthStateChanged(auth, (user) => {
+    if (!user) window.location.href = "login.html";
+  });
+
+  window.logout = () => {
+    signOut(auth).then(() => {
+      window.location.href = "login.html";
+    });
+  };
+
+  //Chat history array to track full conversation
+  let chatHistory = [];
+
+  document.getElementById('submitQuestion').addEventListener('click', submitQuestion);
+  document.getElementById('questionInput').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') submitQuestion();
+  });
+
+  async function submitQuestion() {
+    const questionInput = document.getElementById('questionInput');
+    const question = questionInput.value.trim();
+    if (!question) return;
+
+    addUserMessage(question);
+    questionInput.value = '';
+
+    // Add user's message to chat history
+    chatHistory.push({ role: "user", content: question });
+
+    const loadingId = addLoadingMessage();
+
+    try {
+      const response = await fetch("http://localhost:5000/ask", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ messages: chatHistory })
+      });
+
+      const data = await response.json();
+      removeLoadingMessage(loadingId);
+
+      if (response.ok) {
+        addAIMessage(data.answer);
+        // Add AI's response to chat history
+        chatHistory.push({ role: "assistant", content: data.answer });
+      } else {
+        addAIMessage("Sorry, I couldn't process your question.");
+      }
+    } catch (error) {
+      console.error("Error calling AI:", error);
+      removeLoadingMessage(loadingId);
+      addAIMessage("Something went wrong. Please try again.");
+    }
+  }
+
+  function addUserMessage(message) {
+    const chatContainer = document.getElementById('chatContainer');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'chat-card bg-white p-6 rounded-lg border border-gray-200';
+    messageDiv.innerHTML = `
+      <div class="flex items-center mb-4">
+        <div class="flex-shrink-0 h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center">
+          <i class="fas fa-user text-gray-600"></i>
+        </div>
+        <div class="ml-4">
+          <h3 class="text-lg font-medium text-gray-900">You</h3>
+        </div>
+      </div>
+      <div class="pl-14">
+        <p class="text-gray-700">${message}</p>
+      </div>
+    `;
+    chatContainer.appendChild(messageDiv);
+    messageDiv.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function addLoadingMessage() {
+    const id = 'loading-' + Date.now();
+    const chatContainer = document.getElementById('chatContainer');
+    const loadingDiv = document.createElement('div');
+    loadingDiv.id = id;
+    loadingDiv.className = 'chat-card bg-white p-6 rounded-lg border border-gray-200';
+    loadingDiv.innerHTML = `
+      <div class="flex items-center mb-4">
+        <div class="flex-shrink-0 h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
+          <i class="fas fa-robot text-indigo-600"></i>
+        </div>
+        <div class="ml-4">
+          <h3 class="text-lg font-medium text-gray-900">AI Assistant</h3>
+        </div>
+      </div>
+      <div class="pl-14">
+        <div class="flex space-x-2">
+          <div class="w-3 h-3 bg-gray-300 rounded-full animate-bounce"></div>
+          <div class="w-3 h-3 bg-gray-300 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+          <div class="w-3 h-3 bg-gray-300 rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
+        </div>
+      </div>
+    `;
+    chatContainer.appendChild(loadingDiv);
+    loadingDiv.scrollIntoView({ behavior: 'smooth' });
+    return id;
+  }
+
+  function removeLoadingMessage(id) {
+    const element = document.getElementById(id);
+    if (element) element.remove();
+  }
+
+  function addAIMessage(message) {
+    const chatContainer = document.getElementById('chatContainer');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'chat-card bg-white p-6 rounded-lg border border-gray-200';
+    messageDiv.innerHTML = `
+      <div class="flex items-center mb-4">
+        <div class="flex-shrink-0 h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
+          <i class="fas fa-robot text-indigo-600"></i>
+        </div>
+        <div class="ml-4">
+          <h3 class="text-lg font-medium text-gray-900">AI Assistant</h3>
+        </div>
+      </div>
+      <div class="pl-14">
+        <p class="text-gray-700">${message}</p>
+      </div>
+    `;
+    chatContainer.appendChild(messageDiv);
+    messageDiv.scrollIntoView({ behavior: 'smooth' });
+  }
+</script>
+</body>
+</html>

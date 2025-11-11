@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Tutee Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  <style>
+    .search-input { padding-left: 2.5rem; }
+    .session-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+    }
+    .star { font-size: 1.5rem; cursor: pointer; }
+    .star.selected { color: #facc15; }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+<!-- Navigation -->
+<nav class="bg-white shadow-sm">
+  <div class="max-w-7xl mx-auto px-4 flex justify-between items-center h-16">
+    <div class="flex items-center">
+      <i class="fas fa-graduation-cap text-indigo-600 text-2xl mr-2"></i>
+      <span class="text-xl font-semibold text-gray-800">PeerTutor</span>
+    </div>
+    <button onclick="logout()" class="text-sm text-gray-600 hover:text-indigo-600">Log Out</button>
+  </div>
+</nav>
+
+<main class="max-w-7xl mx-auto px-4 py-8">
+  <section class="mb-8">
+    <h1 class="text-3xl font-bold text-gray-900 mb-4">Welcome, Tutee!</h1>
+
+    <!-- Search Bar -->
+    <div class="max-w-2xl relative mb-4">
+      <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+        <i class="fas fa-search text-gray-400"></i>
+      </div>
+      <input type="text" id="subjectSearch" class="search-input block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="Search for tutor by subject">
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="searchResults"></div>
+
+    <!-- Action Buttons -->
+    <div class="flex flex-col sm:flex-row gap-4 mt-6 mb-12">
+      <button onclick="askAI()" class="px-6 py-3 border border-gray-300 font-medium rounded-lg shadow-sm hover:bg-gray-50 transition">Ask AI</button>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="text-2xl font-semibold text-gray-900 mb-6">Upcoming Sessions</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6" id="sessionContainer"></div>
+  </section>
+</main>
+
+<!-- Booking Modal -->
+<div id="bookingModal" class="fixed inset-0 hidden items-center justify-center bg-black bg-opacity-40 z-50">
+  <div class="bg-white p-6 rounded-lg w-96 space-y-4">
+    <h3 class="text-lg font-bold">Book with <span id="modalTutorName"></span></h3>
+    <input type="date" id="sessionDate" class="w-full border p-2 rounded" />
+    <div class="flex items-center gap-2">
+      <input type="time" id="startTime" class="w-1/2 border p-2 rounded" />
+      <input type="time" id="endTime" class="w-1/2 border p-2 rounded" />
+    </div>
+    <div class="flex justify-end gap-2 pt-2">
+      <button onclick="closeBookingModal()" class="bg-gray-200 px-4 py-2 rounded">Cancel</button>
+      <button onclick="confirmBooking()" class="bg-indigo-600 text-white px-4 py-2 rounded">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- Rating Modal -->
+<div id="ratingModal" class="fixed inset-0 hidden items-center justify-center bg-black bg-opacity-40 z-50">
+  <div class="bg-white p-6 rounded-lg w-96 space-y-4">
+    <h3 class="text-lg font-bold">Rate Tutor</h3>
+    <div class="flex gap-1" id="starContainer"></div>
+    <textarea id="ratingComment" placeholder="Leave an optional review..." class="w-full border p-2 rounded resize-none"></textarea>
+    <div class="flex justify-end gap-2">
+      <button onclick="closeRatingModal()" class="bg-gray-200 px-4 py-2 rounded">Cancel</button>
+      <button onclick="submitRating()" class="bg-indigo-600 text-white px-4 py-2 rounded">Submit</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js";
+  import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-auth.js";
+  import {
+    getFirestore, collection, query, where, getDocs, doc, getDoc, addDoc, updateDoc
+  } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDmiU5VryF5glIAqaIEUsipIaQwDZZR5vM",
+    authDomain: "cs-project1-1a426.firebaseapp.com",
+    projectId: "cs-project1-1a426",
+    storageBucket: "cs-project1-1a426.appspot.com",
+    messagingSenderId: "685440175805",
+    appId: "1:685440175805:web:f6b3f9712ac8b2417731d4"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  let currentUser = null;
+  let selectedTutor = null;
+
+  const sessionContainer = document.getElementById("sessionContainer");
+  const searchResults = document.getElementById("searchResults");
+
+  const bookingModal = document.getElementById("bookingModal");
+  const modalTutorName = document.getElementById("modalTutorName");
+  const sessionDate = document.getElementById("sessionDate");
+  const startTime = document.getElementById("startTime");
+  const endTime = document.getElementById("endTime");
+
+  const ratingModal = document.getElementById("ratingModal");
+  const starContainer = document.getElementById("starContainer");
+  const commentInput = document.getElementById("ratingComment");
+
+  let selectedRating = 0;
+  let selectedSession = null;
+
+  const statusColor = {
+    confirmed: "bg-green-100 text-green-800",
+    pending: "bg-yellow-100 text-yellow-800",
+    proposed: "bg-blue-100 text-blue-800",
+    cancelled: "bg-red-100 text-red-800"
+  };
+
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) return location.href = "login.html";
+    currentUser = user;
+
+    const userSnap = await getDoc(doc(db, "users", user.uid));
+    document.querySelector("h1").textContent = `Welcome, ${userSnap.data()?.fullName || "Tutee"}!`;
+
+    const q = query(collection(db, "sessions"), where("tuteeId", "==", user.uid));
+    const snapshot = await getDocs(q);
+    sessionContainer.innerHTML = "";
+
+    for (const docSnap of snapshot.docs) {
+      const session = docSnap.data();
+      const sessionId = docSnap.id;
+
+      const tutorSnap = await getDoc(doc(db, "users", session.tutorId));
+      const tutorName = tutorSnap.exists() ? tutorSnap.data().fullName : "Unknown";
+
+      const badge = `<span class="inline-block px-2 py-1 rounded-full text-xs font-medium ${statusColor[session.status] || ''}">${session.status}</span>`;
+
+      let actions = "";
+      if (session.status === "confirmed") {
+        actions = `<button onclick="openRatingModal('${sessionId}', '${session.tutorId}')" class="bg-purple-500 text-white px-3 py-1 rounded text-sm mt-2">Rate Tutor</button>`;
+      } else if (session.status === "proposed") {
+        actions = `
+          <div class="mt-2 space-x-2">
+            <button onclick="respondToProposal('${sessionId}', true)" class="bg-green-500 text-white px-3 py-1 rounded text-sm">Accept</button>
+            <button onclick="respondToProposal('${sessionId}', false)" class="bg-red-500 text-white px-3 py-1 rounded text-sm">Decline</button>
+          </div>
+        `;
+      }
+
+      const date = session.proposedDate || session.date;
+      const time = session.proposedTime || session.time;
+
+      sessionContainer.innerHTML += `
+        <div class="session-card bg-white p-6 rounded-lg border border-gray-100">
+          <div class="flex justify-between mb-2">
+            <h3 class="text-lg font-medium">${session.subject}</h3>
+            ${badge}
+          </div>
+          <p class="text-gray-600"><i class="far fa-calendar-alt mr-2"></i>${date}</p>
+          <p class="text-gray-600"><i class="far fa-clock mr-2"></i>${time}</p>
+          <p class="text-gray-600"><i class="fas fa-user mr-2"></i>${tutorName}</p>
+          ${actions}
+        </div>
+      `;
+    }
+  });
+
+  document.getElementById("subjectSearch").addEventListener("input", async (e) => {
+    const search = e.target.value.toLowerCase();
+    if (!search) return searchResults.innerHTML = "";
+
+    const q = query(collection(db, "users"), where("role", "==", "tutor"));
+    const snapshot = await getDocs(q);
+    searchResults.innerHTML = "";
+
+    snapshot.docs.forEach(docSnap => {
+      const tutor = docSnap.data();
+      if (tutor.subject.toLowerCase().includes(search)) {
+        const card = document.createElement("div");
+        card.className = "bg-white p-4 border rounded-lg shadow-sm";
+        card.innerHTML = `
+          <h3 class="text-lg font-semibold">${tutor.fullName}</h3>
+          <p class="text-gray-500 mb-2">Subject: ${tutor.subject}</p>
+          <button onclick='openBookingModal(${JSON.stringify({ id: docSnap.id, name: tutor.fullName, subject: tutor.subject })})' class="bg-indigo-600 text-white px-4 py-2 rounded">Book</button>
+        `;
+        searchResults.appendChild(card);
+      }
+    });
+  });
+
+  window.openBookingModal = (tutor) => {
+    selectedTutor = tutor;
+    modalTutorName.textContent = tutor.name;
+    bookingModal.classList.remove("hidden");
+    bookingModal.classList.add("flex");
+  };
+
+  window.closeBookingModal = () => {
+    selectedTutor = null;
+    bookingModal.classList.add("hidden");
+  };
+
+  window.confirmBooking = async () => {
+    const date = sessionDate.value;
+    const from = startTime.value;
+    const to = endTime.value;
+
+    if (!date || !from || !to) return alert("Please complete all fields.");
+    await addDoc(collection(db, "sessions"), {
+      tuteeId: currentUser.uid,
+      tutorId: selectedTutor.id,
+      subject: selectedTutor.subject,
+      date: date,
+      time: `${from} - ${to}`,
+      status: "pending"
+    });
+    closeBookingModal();
+    alert("Session booked successfully!");
+    location.reload();
+  };
+
+  window.respondToProposal = async (sessionId, accept) => {
+    const ref = doc(db, "sessions", sessionId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return;
+
+    if (accept) {
+      await updateDoc(ref, {
+        status: "confirmed",
+        date: snap.data().proposedDate,
+        time: snap.data().proposedTime,
+        proposedDate: null,
+        proposedTime: null
+      });
+    } else {
+      await updateDoc(ref, { status: "cancelled" });
+    }
+    location.reload();
+  };
+
+  window.openRatingModal = (sessionId, tutorId) => {
+    selectedSession = { sessionId, tutorId };
+    selectedRating = 0;
+    commentInput.value = "";
+    starContainer.innerHTML = "";
+
+    for (let i = 1; i <= 5; i++) {
+      const star = document.createElement("i");
+      star.className = "fas fa-star star text-gray-400";
+      star.dataset.value = i;
+      star.onclick = () => {
+        selectedRating = i;
+        document.querySelectorAll(".star").forEach(s => {
+          s.classList.toggle("selected", parseInt(s.dataset.value) <= i);
+        });
+      };
+      starContainer.appendChild(star);
+    }
+
+    ratingModal.classList.remove("hidden");
+    ratingModal.classList.add("flex");
+  };
+
+  window.closeRatingModal = () => {
+    ratingModal.classList.add("hidden");
+    selectedRating = 0;
+    selectedSession = null;
+  };
+
+  window.submitRating = async () => {
+    if (!selectedRating) return alert("Please select a rating.");
+    await addDoc(collection(db, "ratings"), {
+      tutorId: selectedSession.tutorId,
+      tuteeId: currentUser.uid,
+      sessionId: selectedSession.sessionId,
+      rating: selectedRating,
+      comment: commentInput.value || "",
+      createdAt: new Date()
+    });
+    alert("Rating submitted!");
+    closeRatingModal();
+  };
+
+  window.logout = () => signOut(auth).then(() => location.href = "login.html");
+  window.askAI = () => location.href = "Agent.html";
+</script>
+
+</body>
+</html>

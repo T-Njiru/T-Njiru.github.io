@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Peer Tutoring Platform</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #e1eaf0;
+      color: #1e1e2f;
+    }
+    @media (max-width: 768px) {
+      .hero-content {
+        flex-direction: column-reverse;
+      }
+      .hero-text {
+        text-align: center;
+      }
+      .hero-buttons {
+        justify-content: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="sticky top-0 z-50 bg-white shadow-sm border-b border-[#cfd8dc]">
+    <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+      <a href="home.html" class="flex items-center">
+        <div class="w-10 h-10 rounded-full bg-[#4361ee] flex items-center justify-center mr-2">
+          <i class="fas fa-graduation-cap text-white text-xl"></i>
+        </div>
+        <span class="font-bold text-xl text-[#1e1e2f]">PeerTutor</span>
+      </a>
+      <div class="flex items-center space-x-6">
+        <a href="home.html" class="text-[#555] hover:text-[#4361ee] transition font-medium">
+          <i class="fas fa-home mr-1"></i> Home
+        </a>
+        <a href="login.html" class="text-[#555] hover:text-[#4361ee] transition font-medium">
+          <i class="fas fa-sign-in-alt mr-1"></i> Login
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Signup Section -->
+  <section class="min-h-screen flex items-center justify-center py-12">
+    <div class="container mx-auto px-4 max-w-md">
+      <!-- Role Toggle -->
+      <div class="flex border-2 border-[#1e1e2f] rounded-lg mb-8 overflow-hidden">
+        <button id="tutorBtn" class="flex-1 py-3 px-4 bg-[#1e1e2f] text-white font-medium">
+          Peer Tutor
+        </button>
+        <button id="tuteeBtn" class="flex-1 py-3 px-4 font-medium border-l-2 border-[#1e1e2f] hover:bg-[#4361ee] hover:text-white transition">
+          Tutee
+        </button>
+      </div>
+
+      <!-- Signup Form -->
+      <form class="space-y-6">
+        <div>
+          <label for="fullname" class="block mb-2 font-medium">Full Name</label>
+          <input type="text" id="fullname" required class="w-full px-4 py-3 border-2 border-[#1e1e2f] rounded-lg focus:ring-[#4361ee] focus:ring-1">
+        </div>
+        <div>
+          <label for="email" class="block mb-2 font-medium">Email</label>
+          <input type="email" id="email" required class="w-full px-4 py-3 border-2 border-[#1e1e2f] rounded-lg focus:ring-[#4361ee] focus:ring-1">
+        </div>
+        <div>
+          <label for="password" class="block mb-2 font-medium">Password</label>
+          <input type="password" id="password" required class="w-full px-4 py-3 border-2 border-[#1e1e2f] rounded-lg focus:ring-[#4361ee] focus:ring-1">
+        </div>
+        <div id="subjectField">
+          <label for="subject" class="block mb-2 font-medium">Subject (for Tutors)</label>
+          <input type="text" id="subject" class="w-full px-4 py-3 border-2 border-[#1e1e2f] rounded-lg focus:ring-[#4361ee] focus:ring-1">
+        </div>
+        <div class="text-center pt-4">
+          <p class="text-sm text-[#555]">Already have an account? <a href="login.html" class="font-bold text-[#4361ee] hover:underline">Log In</a></p>
+        </div>
+        <button type="submit" class="w-full bg-[#1e1e2f] hover:bg-[#4361ee] text-white font-medium py-3 px-4 rounded-lg shadow-md transition">
+          Sign Up
+        </button>
+      </form>
+    </div>
+  </section>
+
+  <!-- Firebase Signup Script -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDmiU5VryF5glIAqaIEUsipIaQwDZZR5vM",
+      authDomain: "cs-project1-1a426.firebaseapp.com",
+      projectId: "cs-project1-1a426",
+      storageBucket: "cs-project1-1a426.appspot.com",
+      messagingSenderId: "685440175805",
+      appId: "1:685440175805:web:f6b3f9712ac8b2417731d4",
+      measurementId: "G-1YCDKEK2XS"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    let selectedRole = "tutor";
+
+    const tutorBtn = document.getElementById('tutorBtn');
+    const tuteeBtn = document.getElementById('tuteeBtn');
+    const subjectField = document.getElementById('subjectField');
+
+    tutorBtn.addEventListener('click', () => {
+      selectedRole = "tutor";
+      tutorBtn.classList.add('bg-[#1e1e2f]', 'text-white');
+      tuteeBtn.classList.remove('bg-[#1e1e2f]', 'text-white');
+      subjectField.style.display = "block";
+    });
+
+    tuteeBtn.addEventListener('click', () => {
+      selectedRole = "tutee";
+      tuteeBtn.classList.add('bg-[#1e1e2f]', 'text-white');
+      tutorBtn.classList.remove('bg-[#1e1e2f]', 'text-white');
+      subjectField.style.display = "none";
+    });
+
+    document.querySelector("form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const fullname = document.getElementById("fullname").value.trim();
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+      const subject = document.getElementById("subject").value.trim();
+
+      if (selectedRole === "tutor" && !subject) {
+        alert("Please enter a subject for tutoring.");
+        return;
+      }
+
+      try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+
+        await setDoc(doc(db, "users", user.uid), {
+          fullName: fullname,
+          email: email,
+          role: selectedRole,
+          subject: selectedRole === "tutor" ? subject : null,
+          createdAt: new Date()
+        });
+
+        alert("Sign-up successful!");
+        window.location.href = "login.html";
+      } catch (error) {
+        alert("Error: " + error.message);
+      }
+    });
+  </script>
+</body>
+</html>

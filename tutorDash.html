@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Tutor Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  <style>
+    .star {
+      font-size: 1rem;
+    }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+<!-- Navigation -->
+<nav class="bg-white shadow-sm mb-6">
+  <div class="max-w-7xl mx-auto px-4 flex justify-between items-center h-16">
+    <div class="flex items-center">
+      <i class="fas fa-chalkboard-teacher text-indigo-600 text-2xl mr-2"></i>
+      <span class="text-xl font-semibold text-gray-800">Tutor Dashboard</span>
+    </div>
+    <button onclick="logout()" class="text-sm text-gray-600 hover:text-indigo-600">Log Out</button>
+  </div>
+</nav>
+
+<main class="max-w-7xl mx-auto px-4">
+  <h1 class="text-3xl font-bold text-gray-900 mb-6" id="welcomeMsg">Welcome, Tutor!</h1>
+  <div id="sessionCards" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+</main>
+
+<!-- Reschedule Modal -->
+<div id="rescheduleModal" class="fixed inset-0 hidden items-center justify-center bg-black bg-opacity-50 z-50">
+  <div class="bg-white p-6 rounded-lg w-80">
+    <h2 class="text-lg font-bold mb-4">Propose New Date & Time</h2>
+    <input type="date" id="newDate" class="w-full border rounded px-3 py-2 mb-3"/>
+    <input type="time" id="newTime" class="w-full border rounded px-3 py-2 mb-4"/>
+    <div class="flex justify-end gap-2">
+      <button onclick="closeModal()" class="bg-gray-200 px-4 py-2 rounded">Cancel</button>
+      <button onclick="submitReschedule()" class="bg-blue-600 text-white px-4 py-2 rounded">Submit</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js";
+  import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-auth.js";
+  import {
+    getFirestore,
+    collection,
+    query,
+    where,
+    getDocs,
+    doc,
+    getDoc,
+    updateDoc
+  } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDmiU5VryF5glIAqaIEUsipIaQwDZZR5vM",
+    authDomain: "cs-project1-1a426.firebaseapp.com",
+    projectId: "cs-project1-1a426",
+    storageBucket: "cs-project1-1a426.appspot.com",
+    messagingSenderId: "685440175805",
+    appId: "1:685440175805:web:f6b3f9712ac8b2417731d4"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  const sessionCards = document.getElementById("sessionCards");
+  const statusColor = {
+    confirmed: "bg-green-100 text-green-800",
+    pending: "bg-yellow-100 text-yellow-800",
+    proposed: "bg-blue-100 text-blue-800",
+    cancelled: "bg-red-100 text-red-800"
+  };
+
+  let selectedSessionId = null;
+
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) return location.href = "login.html";
+
+    const uid = user.uid;
+    const userSnap = await getDoc(doc(db, "users", uid));
+    document.getElementById("welcomeMsg").textContent = `Welcome, ${userSnap.data()?.fullName || "Tutor"}!`;
+
+    const q = query(collection(db, "sessions"), where("tutorId", "==", uid));
+    const snapshot = await getDocs(q);
+    sessionCards.innerHTML = "";
+
+    for (const docSnap of snapshot.docs) {
+      const session = docSnap.data();
+      const sessionId = docSnap.id;
+
+      const tuteeSnap = await getDoc(doc(db, "users", session.tuteeId));
+      const tuteeName = tuteeSnap.exists() ? tuteeSnap.data().fullName : "Unknown Tutee";
+
+      const ratingQuery = query(
+        collection(db, "ratings"),
+        where("sessionId", "==", sessionId),
+        where("tutorId", "==", uid)
+      );
+      const ratingSnap = await getDocs(ratingQuery);
+      const ratingData = ratingSnap.docs[0]?.data();
+
+      let starsHTML = "";
+      if (ratingData) {
+        for (let i = 1; i <= 5; i++) {
+          starsHTML += `<i class="fas fa-star star ${i <= ratingData.rating ? 'text-yellow-400' : 'text-gray-300'}"></i>`;
+        }
+      }
+
+      const statusBadge = `<span class="inline-block px-2 py-1 rounded-full text-xs font-semibold ${statusColor[session.status] || 'bg-gray-100 text-gray-800'}">${session.status}</span>`;
+      const date = session.proposedDate || session.date;
+      const time = session.proposedTime || session.time;
+
+      const card = document.createElement("div");
+      card.className = "session-card bg-white p-6 rounded-lg shadow-sm border border-gray-200";
+
+      card.innerHTML = `
+        <div class="flex justify-between items-center mb-2">
+          <h3 class="text-lg font-semibold">${session.subject}</h3>
+          ${statusBadge}
+        </div>
+        <p class="text-gray-600 mb-1"><i class="far fa-calendar-alt mr-1"></i>${date}</p>
+        <p class="text-gray-600 mb-1"><i class="far fa-clock mr-1"></i>${time}</p>
+        <p class="text-gray-600 mb-2"><i class="fas fa-user mr-1"></i>${tuteeName}</p>
+        <div class="flex gap-2 mb-2">
+          <button onclick="updateStatus('${sessionId}', 'confirmed')" class="bg-green-100 text-green-800 px-3 py-1 rounded text-sm">Accept</button>
+          <button onclick="openModal('${sessionId}')" class="bg-blue-100 text-blue-800 px-3 py-1 rounded text-sm">Reschedule</button>
+          <button onclick="updateStatus('${sessionId}', 'cancelled')" class="bg-red-100 text-red-800 px-3 py-1 rounded text-sm">Cancel</button>
+        </div>
+        ${ratingData ? `
+          <div class="mt-3 border-t pt-2 text-sm text-gray-700">
+            <div class="flex gap-1 mb-1">${starsHTML}</div>
+            <p class="italic text-gray-600">"${ratingData.comment || 'No comment'}"</p>
+          </div>` : ""
+        }
+      `;
+      sessionCards.appendChild(card);
+    }
+  });
+
+  window.updateStatus = async (sessionId, status) => {
+    await updateDoc(doc(db, "sessions", sessionId), { status });
+    alert(`Session ${status}`);
+    location.reload();
+  };
+
+  window.openModal = (sessionId) => {
+    selectedSessionId = sessionId;
+    document.getElementById("rescheduleModal").classList.remove("hidden");
+    document.getElementById("rescheduleModal").classList.add("flex");
+  };
+
+  window.closeModal = () => {
+    selectedSessionId = null;
+    document.getElementById("rescheduleModal").classList.add("hidden");
+  };
+
+  window.submitReschedule = async () => {
+    const newDate = document.getElementById("newDate").value;
+    const newTime = document.getElementById("newTime").value;
+    if (!newDate || !newTime) return alert("Please enter date and time.");
+
+    await updateDoc(doc(db, "sessions", selectedSessionId), {
+      status: "proposed",
+      proposedDate: newDate,
+      proposedTime: newTime
+    });
+
+    alert("Proposed new time sent.");
+    closeModal();
+    location.reload();
+  };
+
+  window.logout = () => signOut(auth).then(() => location.href = "login.html");
+</script>
+
+</body>
+</html>
